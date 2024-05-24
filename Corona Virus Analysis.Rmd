@@ -1,0 +1,252 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Loading packages
+```{r, eval=FALSE}
+install.packages("pacman")
+library(pacman)
+pacman::p_load(tidyr, dplyr, tidyverse, readxl, janitor, ggplot2, lubridate)
+```
+
+# Loading our dataset
+```{r}
+corona = read.csv("Corona Virus Dataset.csv")
+```
+
+## Lets explore our dataset
+### dimensions
+```{r}
+dim(corona)
+```
+### structure
+```{r}
+str(corona)
+```
+### converting the datatype of the date column to date with format %d%m%Y
+```{r}
+corona$Date = as.Date(corona$Date, format="%d-%m-%Y")
+```
+
+### Lets check if there are any columns with missing values
+```{r}
+NAs = colSums(is.na(corona))
+names(corona)[NAs >0]
+```
+### lets see our column names
+```{r}
+names(corona)
+```
+
+# Lets begin to answer our questions
+## Q1. Write a code to check NULL values
+```{r}
+is.null(corona$Province)
+is.null(corona$Country.Region)
+is.null(corona$Latitude)
+is.null(corona$Longitude)
+is.null(corona$Date)
+is.null(corona$Confirmed)
+is.null(corona$Deaths)
+is.null(corona$Recovered)
+```
+## or
+
+```{r}
+nullvalues =sapply(corona, is.null)
+print(nullvalues)
+```
+## Q2. If NULL values are present, update them with zeros for all columns. 
+```{r}
+#creating the function
+replace_null_values= function(column){
+  if(is.null(column)){
+  return(0)
+  }else{
+  return(column)
+  }
+}
+#Applying the function
+corona =  as.data.frame(lapply(corona, replace_null_values))
+```
+
+## Q3. check total number of rows
+
+```{r}
+nrow(corona)
+```
+## Q4. Check what is start_date and end_date
+```{r}
+start_date = min(corona$Date, na.rm=FALSE)
+cat("This is the start date", as.character(start_date), "\n")
+end_date =max(corona$Date, na.rm =FALSE)
+cat("\nThis is the end date", as.character(end_date))
+
+```
+## Q5. Number of month present in dataset
+
+```{r}
+# Extract year and month from the Date column
+corona$YearMonth <- format(corona$Date, "%Y-%m")
+
+# Count the number of unique Year-Month combinations
+length(unique(corona$YearMonth))
+```
+
+```{r}
+#converting the date column to datatype character
+corona$Date =as.character(corona$Date)
+
+#separating the date column
+corona= separate(corona, col= Date, into = c("Year", "Month", "Day"))
+
+#converting the columns to numeric
+corona$Year =as.numeric(corona$Year)
+corona$Month = as.numeric(corona$Month)
+corona$Day = as.numeric(corona$Day)
+```
+
+
+## Q6. Find monthly average for confirmed, deaths, recovered
+```{r}
+corona_monthly_averages= corona %>%
+  select(YearMonth,Confirmed, Deaths, Recovered) %>%
+  group_by(YearMonth) %>% 
+  summarise(Average_Confirmed= floor(mean(Confirmed, na.rm= FALSE)),
+            Average_Deaths= floor(mean(Deaths, na.rm= FALSE)),
+            Average_Recovered= floor(mean(Recovered, na.rm = FALSE)))
+
+print(corona_monthly_averages)
+  
+```
+
+## Q7. Find most frequent value for confirmed, deaths, recovered each month 
+```{r}
+#Frequetly confirmed number
+corona_frequent_Confirmed= corona %>% 
+  select(Confirmed) %>% 
+  group_by(Confirmed) %>% 
+  summarise(Count=n()) %>% 
+  arrange(desc(Count)) %>% 
+  head(1)
+print(corona_frequent_Confirmed)
+
+#Frequently Deaths number
+corona_frequent_Deaths =corona %>% 
+  select(Deaths) %>% 
+  group_by(Deaths) %>% 
+  summarise(Count=n()) %>%
+  arrange(desc(Count)) %>% 
+  head(1)
+
+print(corona_frequent_Deaths)
+
+#frequently recovered number
+corona_frequent_Recovered= corona %>% 
+  select(Recovered) %>% 
+  group_by(Recovered) %>% 
+  summarise(Count= n()) %>% 
+  arrange(desc(Count)) %>% 
+  head(1)
+
+print(corona_frequent_Recovered)
+```
+## Q8. Find minimum values for confirmed, deaths, recovered per year
+```{r}
+corona_minimum_values= corona %>% 
+  select(Year, Confirmed, Deaths, Recovered) %>% 
+  group_by(Year) %>% 
+  summarise(Minimum_Confirmed = min(Confirmed, na.rm = FALSE),
+            Minimum_deaths = min(Deaths, na.rm = FALSE),
+            Minimum_recovered = min(Recovered, na.rm = FALSE))
+print(corona_minimum_values)
+```
+## Q9. Find maximum values of confirmed, deaths, recovered per year
+```{R}
+Corona_Maximum_Values= corona %>% 
+  select(Year, Confirmed, Deaths, Recovered) %>% 
+  group_by(Year) %>% 
+  summarise(Maximum_Confirmed = max(Confirmed, na.rm = FALSE),
+            Maximum_deaths = max(Deaths, na.rm = FALSE),
+            Maximum_Recovered = max(Recovered, na.rm = FALSE))
+print(Corona_Maximum_Values)
+```
+## Q10. The total number of case of confirmed, deaths, recovered each month
+```{r}
+Corona_Monthly_Totals = corona %>% 
+  select(YearMonth, Confirmed, Deaths, Recovered) %>% 
+  group_by(YearMonth) %>% 
+  summarise(Total_Confimed = sum(Confirmed, na.rm = FALSE),
+            Total_Deaths = sum(Confirmed, na.rm = FALSE),
+            Total_Recovered = sum(Recovered, na.rm = FALSE))
+
+print(Corona_Monthly_Totals)
+```
+## Q11. Check how corona virus spread out with respect to confirmed case(Eg.: total confirmed cases, their average, variance & STDEV )
+```{r}
+Confirmed_cases =corona %>% 
+  select(YearMonth, Confirmed) %>% 
+  group_by(YearMonth) %>% 
+  summarise(Total_Confirmed = sum(Confirmed, na.rm = FALSE),
+            Average_Confirmed = floor(mean(Confirmed, na.rm = FALSE)),
+            Variance_of_Confirmed = round(var(Confirmed, na.rm = FALSE), 2),
+            STDEV_for_Confirmed =round(sd(Confirmed, na.rm = FALSE),2))
+print(Confirmed_cases)
+```
+## Q12. Check how corona virus spread out with respect to death case per month (Eg.: total confirmed cases, their average, variance & STDEV )
+```{r}
+Death_cases =corona %>% 
+  select(YearMonth, Deaths) %>% 
+  group_by(YearMonth) %>% 
+  summarise(Total_Death = sum(Deaths, na.rm = FALSE),
+            Average_Death = floor(mean(Deaths, na.rm = FALSE)),
+            Variance_of_Death = round(var(Deaths, na.rm = FALSE), 2),
+            STDEV_for_Death =round(sd(Deaths, na.rm = FALSE),2))
+print(Death_cases)
+```
+## Q13. Check how corona virus spread out with respect to recovered case (Eg.: total confirmed cases, their average, variance & STDEV )
+```{r}
+recovered_cases =corona %>% 
+  select(YearMonth, Recovered) %>% 
+  group_by(YearMonth) %>% 
+  summarise(Total_recovered = sum(Recovered, na.rm = FALSE),
+            Average_recovered = floor(mean(Recovered, na.rm = FALSE)),
+            Variance_of_recovered = round(var(Recovered, na.rm = FALSE), 2),
+            STDEV_for_recovered =round(sd(Recovered, na.rm = FALSE),2))
+print(recovered_cases)
+```
+## Q14. Find Country having highest number of the Confirmed case
+```{r}
+Corona_Cases_wrt_Countries =corona %>% 
+  select(Country.Region, Confirmed, Deaths, Recovered) %>% 
+  group_by(Country.Region) %>% 
+  summarise(Total_Confirmed = sum(Confirmed, na.rm = FALSE),
+            Total_Deaths = sum(Deaths, na.rm =  FALSE),
+            Total_Recovered = sum(Recovered, na.rm = FALSE))
+```
+
+```{r}
+Country_highest_Confirmed=Corona_Cases_wrt_Countries %>% 
+  select(Country.Region,Total_Confirmed) %>% 
+  arrange(desc(Total_Confirmed)) %>% 
+  head(1)
+print(Country_highest_Confirmed)
+```
+## Q15. Find Country having lowest number of the death case
+```{r}
+Country_lowest_deaths = Corona_Cases_wrt_Countries %>%
+select(Country.Region,Total_Deaths) %>% 
+  arrange(Total_Deaths) %>% 
+  head(1)
+print(Country_lowest_deaths)
+```
+## Q16. Find top 5 countries having highest recovered case
+```{r}
+Country_highest_Recovered =Corona_Cases_wrt_Countries %>% 
+  select(Country.Region, Total_Recovered) %>% 
+  arrange(desc(Total_Recovered)) %>% 
+  head(5)
+
+print(Country_highest_Recovered)
+```
